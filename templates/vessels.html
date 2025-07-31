@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="vessels-page">
+    <div class="page-header">
+        <h1>Vessel Tracking</h1>
+        <div class="controls">
+            <button id="refresh-btn" class="btn btn-primary">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+            <select id="vessel-filter" class="form-select">
+                <option value="">All Vessels</option>
+                <option value="Cargo">Cargo</option>
+                <option value="Tanker">Tanker</option>
+                <option value="Fishing">Fishing</option>
+                <option value="Passenger">Passenger</option>
+                <option value="Tug">Tug</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="vessels-grid">
+        <div class="vessels-map-container">
+            <div id="vessels-map" style="height: 500px;"></div>
+        </div>
+        
+        <div class="vessels-list-container">
+            <h3>Active Vessels</h3>
+            <div id="vessels-list"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let vesselsMap;
+    let allVessels = [];
+    let vesselMarkers = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initVesselsMap();
+        loadVessels();
+        
+        document.getElementById('refresh-btn').addEventListener('click', loadVessels);
+        document.getElementById('vessel-filter').addEventListener('change', filterVessels);
+        
+        setInterval(loadVessels, 15000);
+    });
+
+    function initVesselsMap() {
+        vesselsMap = L.map('vessels-map').setView([19.0760, 72.8777], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(vesselsMap);
+    }
+
+    function loadVessels() {
+        fetch('/api/vessels')
+            .then(response => response.json())
+            .then(vessels => {
+                allVessels = vessels;
+                filterVessels();
+            });
+    }
+
+    function filterVessels() {
+        const filter = document.getElementById('vessel-filter').value;
+        const filteredVessels = filter ? 
+            allVessels.filter(v => v.type === filter) : 
+            allVessels;
+        
+        updateVesselsMap(filteredVessels);
+        updateVesselsList(filteredVessels);
+    }
+
+    function updateVesselsMap(vessels) {
+        vesselMarkers.forEach(marker => vesselsMap.removeLayer(marker));
+        vesselMarkers = [];
+
+        vessels.forEach(vessel => {
+            const icon = L.divIcon({
+                className: 'vessel-marker-detailed',
+                html: `
+                    <div class="vessel-icon ${vessel.type.toLowerCase()}">
+                        <i class="fas fa-ship"></i>
+                        <span class="vessel-label">${vessel.name}</span>
+                    </div>
+                `,
+                iconSize: [60, 30]
+            });
+
+            const marker = L.marker([vessel.lat, vessel.lng], { icon })
+                .bindPopup(`
+                    <div class="vessel-popup">
+                        <h4>${vessel.name} (${vessel.id})</h4>
+                        <p><strong>Type:</strong> ${vessel.type}</p>
+                        <p><strong>Speed:</strong> ${vessel.speed.toFixed(1)} knots</p>
+                        <p><strong>Heading:</strong> ${vessel.heading.toFixed(0)}°</p>
+                        <p><strong>Status:</strong> ${vessel.status}</p>
+                        <p><strong>Last Update:</strong> ${vessel.last_update}</p>
+                    </div>
+                `);
+            
+            marker.addTo(vesselsMap);
+            vesselMarkers.push(marker);
+        });
+    }
+
+    function updateVesselsList(vessels) {
+        const vesselsList = document.getElementById('vessels-list');
+        vesselsList.innerHTML = '';
+
+        vessels.forEach(vessel => {
+            const vesselElement = document.createElement('div');
+            vesselElement.className = 'vessel-item';
+            vesselElement.innerHTML = `
+                <div class="vessel-info">
+                    <div class="vessel-header">
+                        <h4>${vessel.name}</h4>
+                        <span class="vessel-status ${vessel.status.toLowerCase()}">${vessel.status}</span>
+                    </div>
+                    <div class="vessel-details">
+                        <p><i class="fas fa-ship"></i> ${vessel.type}</p>
+                        <p><i class="fas fa-tachometer-alt"></i> ${vessel.speed.toFixed(1)} knots</p>
+                        <p><i class="fas fa-compass"></i> ${vessel.heading.toFixed(0)}°</p>
+                        <p><i class="fas fa-clock"></i> ${vessel.last_update}</p>
+                    </div>
+                </div>
+            `;
+            
+            vesselElement.addEventListener('click', () => {
+                vesselsMap.setView([vessel.lat, vessel.lng], 14);
+            });
+            
+            vesselsList.appendChild(vesselElement);
+        });
+    }
+</script>
+{% endblock %}

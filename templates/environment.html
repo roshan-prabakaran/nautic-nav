@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="environment-page">
+    <div class="page-header">
+        <h1>Environmental Monitoring</h1>
+        <div class="status-indicator">
+            <span class="status-dot" id="monitoring-status"></span>
+            <span>Real-time Monitoring Active</span>
+        </div>
+    </div>
+
+    <div class="environment-grid">
+        <div class="env-card">
+            <div class="card-header">
+                <h3><i class="fas fa-tint"></i> Water Quality</h3>
+            </div>
+            <div class="card-content">
+                <div class="metric-grid">
+                    <div class="metric">
+                        <span class="metric-label">pH Level</span>
+                        <span class="metric-value" id="ph-level">--</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Dissolved Oxygen</span>
+                        <span class="metric-value" id="dissolved-oxygen">-- mg/L</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Turbidity</span>
+                        <span class="metric-value" id="turbidity">-- NTU</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Temperature</span>
+                        <span class="metric-value" id="water-temperature">--°C</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="env-card">
+            <div class="card-header">
+                <h3><i class="fas fa-wind"></i> Weather Conditions</h3>
+            </div>
+            <div class="card-content">
+                <div class="metric-grid">
+                    <div class="metric">
+                        <span class="metric-label">Wind Speed</span>
+                        <span class="metric-value" id="wind-speed">-- m/s</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Wind Direction</span>
+                        <span class="metric-value" id="wind-direction">--°</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Wave Height</span>
+                        <span class="metric-value" id="wave-height">-- m</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Visibility</span>
+                        <span class="metric-value" id="visibility">-- km</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="env-card">
+            <div class="card-header">
+                <h3><i class="fas fa-smog"></i> Pollution Index</h3>
+            </div>
+            <div class="card-content">
+                <div class="pollution-gauge">
+                    <canvas id="pollutionGauge" width="200" height="200"></canvas>
+                    <div class="gauge-value" id="pollution-value">--</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="env-card">
+            <div class="card-header">
+                <h3><i class="fas fa-fish"></i> Biodiversity Score</h3>
+            </div>
+            <div class="card-content">
+                <div class="biodiversity-score">
+                    <div class="score-circle" id="biodiversity-circle">
+                        <span id="biodiversity-score">--</span>
+                    </div>
+                    <p>Marine ecosystem health indicator</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="predictions-section">
+        <h2>ML Predictions & Forecasts</h2>
+        <div class="predictions-grid">
+            <div class="prediction-card">
+                <h4>Pollution Forecast</h4>
+                <canvas id="pollutionChart"></canvas>
+            </div>
+            <div class="prediction-card">
+                <h4>Weather Forecast</h4>
+                <canvas id="weatherChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let pollutionChart, weatherChart;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initCharts();
+        loadEnvironmentalData();
+        
+        setInterval(loadEnvironmentalData, 20000);
+    });
+
+    function initCharts() {
+        // Pollution forecast chart
+        const pollutionCtx = document.getElementById('pollutionChart').getContext('2d');
+        pollutionChart = new Chart(pollutionCtx, {
+            type: 'line',
+            data: {
+                labels: ['Now', '+6h', '+12h', '+18h', '+24h'],
+                datasets: [{
+                    label: 'Pollution Index',
+                    data: [45, 52, 48, 55, 42],
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        // Weather forecast chart
+        const weatherCtx = document.getElementById('weatherChart').getContext('2d');
+        weatherChart = new Chart(weatherCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Now', '+6h', '+12h', '+18h', '+24h'],
+                datasets: [{
+                    label: 'Wind Speed (m/s)',
+                    data: [12, 15, 18, 14, 10],
+                    backgroundColor: '#3498db'
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    function loadEnvironmentalData() {
+        fetch('/api/environment')
+            .then(response => response.json())
+            .then(data => {
+                // Update water quality metrics
+                document.getElementById('ph-level').textContent = data.water_quality.ph;
+                document.getElementById('dissolved-oxygen').textContent = data.water_quality.dissolved_oxygen + ' mg/L';
+                document.getElementById('turbidity').textContent = data.water_quality.turbidity + ' NTU';
+                document.getElementById('water-temperature').textContent = data.water_quality.temperature + '°C';
+
+                // Update weather metrics
+                document.getElementById('wind-speed').textContent = data.weather.wind_speed + ' m/s';
+                document.getElementById('wind-direction').textContent = data.weather.wind_direction + '°';
+                document.getElementById('wave-height').textContent = data.weather.wave_height + ' m';
+                document.getElementById('visibility').textContent = data.weather.visibility + ' km';
+
+                // Update pollution gauge
+                updatePollutionGauge(data.pollution_index);
+                
+                // Update biodiversity score
+                updateBiodiversityScore(data.biodiversity_score);
+
+                // Update status indicator
+                document.getElementById('monitoring-status').className = 'status-dot active';
+            });
+    }
+
+    function updatePollutionGauge(value) {
+        const canvas = document.getElementById('pollutionGauge');
+        const ctx = canvas.getContext('2d');
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const radius = 80;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw gauge background
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+        ctx.strokeStyle = '#ecf0f1';
+        ctx.lineWidth = 20;
+        ctx.stroke();
+
+        // Draw gauge value
+        const angle = (value / 100) * 2 * Math.PI;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, -Math.PI / 2, -Math.PI / 2 + angle);
+        ctx.strokeStyle = value > 70 ? '#e74c3c' : value > 40 ? '#f39c12' : '#27ae60';
+        ctx.lineWidth = 20;
+        ctx.stroke();
+
+        document.getElementById('pollution-value').textContent = value;
+    }
+
+    function updateBiodiversityScore(score) {
+        const circle = document.getElementById('biodiversity-circle');
+        const scoreElement = document.getElementById('biodiversity-score');
+        
+        scoreElement.textContent = score;
+        
+        const percentage = score;
+        circle.style.background = `conic-gradient(#27ae60 ${percentage * 3.6}deg, #ecf0f1 0deg)`;
+    }
+</script>
+{% endblock %}
